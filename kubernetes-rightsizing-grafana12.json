@@ -1,0 +1,2254 @@
+{
+  "id": null,
+  "uid": "k8s-rightsizing-v1",
+  "title": "Kubernetes Rightsizing — Deployment",
+  "description": "Diagnostyka zasobów deploymentu: CPU, RAM, requests/limits, CFS throttling, restarty i percentyle. Pod → ReplicaSet → Deployment z kube-state-metrics.",
+  "tags": [
+    "kubernetes",
+    "rightsizing",
+    "prometheus"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "",
+  "time": {
+    "from": "now-14d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m",
+      "1h"
+    ],
+    "time_options": [
+      "1h",
+      "6h",
+      "24h",
+      "7d",
+      "14d",
+      "30d"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "refresh": 1,
+        "hide": 0,
+        "current": {},
+        "options": [],
+        "regex": "",
+        "multi": false
+      },
+      {
+        "name": "cluster",
+        "label": "Cluster (regex, opcjonalnie)",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        },
+        "options": [
+          {
+            "text": ".*",
+            "value": ".*",
+            "selected": true
+          }
+        ],
+        "hide": 0
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(kube_pod_owner{cluster=~\"${cluster:raw}\"}, namespace)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(kube_pod_owner{cluster=~\"${cluster:raw}\"}, namespace)",
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "multi": false,
+        "includeAll": false,
+        "allValue": null,
+        "current": {},
+        "options": []
+      },
+      {
+        "name": "deployment",
+        "label": "Deployment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(kube_deployment_spec_replicas{cluster=~\"${cluster:raw}\", namespace=\"$namespace\"}, deployment)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(kube_deployment_spec_replicas{cluster=~\"${cluster:raw}\", namespace=\"$namespace\"}, deployment)",
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "multi": false,
+        "includeAll": false,
+        "allValue": null,
+        "current": {},
+        "options": []
+      },
+      {
+        "name": "container",
+        "label": "Kontener",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "query_result(count by (container) ((max by (cluster, namespace, pod, container) (kube_pod_container_info{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "query_result(count by (container) ((max by (cluster, namespace, pod, container) (kube_pod_container_info{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))))",
+        "refresh": 1,
+        "sort": 1,
+        "regex": "/container=\"([^\"]+)\"/",
+        "hide": 0,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Instrukcja i zakres pomiaru",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 9
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Jak używać\nWybierz **Prometheus → cluster → namespace → deployment → container**. `cluster` to opcjonalny regex labelki `cluster`; `.*` obejmuje także źródło bez tej labelki. Nazwy podów nie są dopasowywane prefiksem: przynależność jest ustalana przez Pod → ReplicaSet → Deployment.\n\n**Wymagania:** kube-state-metrics (właściciele, requests/limits, repliki, restarty) oraz kubelet/cAdvisor (CPU, working set i opcjonalnie CFS throttling), z tymi samymi labelkami `cluster`, `namespace`, `pod`, `container`. Brak metryki daje No data, nie zero. Jeśli datasource zbiera wiele klastrów, labelka `cluster` musi występować spójnie w obu źródłach. Dublowane scrape'y są redukowane przez `max`, nie sumowane.\n\n**Interpretacja:** przekroczenie requestu nie oznacza przekroczenia limitu. Working set nie jest pełnym zużyciem pamięci rozliczanym przy OOM. Throttling % to udział okresów CFS z throttlingiem, nie procent utraconego CPU. OOM pokazuje *ostatnią znaną przyczynę zakończenia*, nie liczbę zdarzeń w okresie. Suma limitów jest pełnym limitem tylko gdy wszystkie wybrane kontenery mają dany limit.\n\n**Historia:** domyślnie 14 dni. p95/p99 to percentyle czasowe per pod/kontener (CPU z 5-minutowego rate, próbki co 5 minut). Historie usuniętych podów pozostają w percentylach, jeśli metryki właścicieli były zbierane w tym okresie; restarty w kaflu dotyczą serii nadal dostępnych na końcu zakresu. Długie zakresy i wiele replik mogą wymagać recording rules. Requests obejmują zwykłe kontenery KSM, bez osobnych metryk init kontenerów, pod overhead i zasobów pod-level; nie traktuj ich jako efektywnej rezerwacji schedulera. Porównaj wyniki z ruchem, latency, błędami, HPA oraz zachowaniem w szczycie przed zmianą zasobów.\n"
+      }
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Deployment — bieżący stan na końcu zakresu",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 3,
+      "title": "CPU usage",
+      "type": "stat",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 6,
+        "h": 4
+      },
+      "description": "Suma dla wybranych kontenerów.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cluster, deployment) ((max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__rate_interval]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{deployment}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "title": "CPU requests",
+      "type": "stat",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 10,
+        "w": 6,
+        "h": 4
+      },
+      "description": "Suma skonfigurowanych requests wybranych kontenerów.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cluster, deployment) ((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"cpu\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{deployment}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "title": "RAM working set",
+      "type": "stat",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 6,
+        "h": 4
+      },
+      "description": "Suma working set dla wybranych kontenerów.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cluster, deployment) ((max by (cluster, namespace, pod, container) (container_memory_working_set_bytes{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{deployment}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "title": "RAM requests",
+      "type": "stat",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 10,
+        "w": 6,
+        "h": 4
+      },
+      "description": "Suma skonfigurowanych requests wybranych kontenerów.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cluster, deployment) ((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"memory\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{deployment}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Repliki deploymentu",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Wszystkie kontenery; selector container nie wpływa na liczbę replik.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster, deployment) (kube_deployment_spec_replicas{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", deployment=\"$deployment\"})",
+          "legendFormat": "{{cluster}} desired",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "max by (cluster, deployment) (kube_deployment_status_replicas_available{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", deployment=\"$deployment\"})",
+          "legendFormat": "{{cluster}} available",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "expr": "max by (cluster, deployment) (kube_deployment_status_replicas{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", deployment=\"$deployment\"})",
+          "legendFormat": "{{cluster}} actual",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Restarty — dostępne serie, wybrany zakres",
+      "type": "stat",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "description": "increase dla serii dostępnych na końcu zakresu; usunięte pody mogą nie być uwzględnione. Wynik increase może być ułamkowy z powodu ekstrapolacji.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cluster, deployment) ((max by (cluster, namespace, pod, container) (increase(kube_pod_container_status_restarts_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__range]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{deployment}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "CPU — pod i kontener",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 10,
+      "title": "CPU per pod — usage / request / limit",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Sumy wybranych kontenerów. Linia limitu może być niepełna, gdy któryś kontener nie ma limitu.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__rate_interval]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{pod}} usage",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"cpu\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{pod}} request",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "expr": "sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (kube_pod_container_resource_limits{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"cpu\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{pod}} configured limit",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "CPU per pod — % request",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Wartości powyżej 100% są możliwe; request nie jest limitem. Zerowy/brakujący request daje brak wyniku.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__rate_interval]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))) / ((sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"cpu\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))) > 0)",
+          "legendFormat": "{{cluster}} {{pod}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "CPU per kontener — usage",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__rate_interval]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "CPU per kontener — % limit",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Tylko kontenery z dodatnim limitem CPU.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * ((max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__rate_interval]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) / (((max by (cluster, namespace, pod, container) (kube_pod_container_resource_limits{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"cpu\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) > 0)",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "CPU throttling per kontener — % okresów CFS",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Udział okresów CFS, w których wystąpił throttling; nie procent czasu CPU. Brak metryk CFS daje No data.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * ((max by (cluster, namespace, pod, container) (rate(container_cpu_cfs_throttled_periods_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__rate_interval]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) / (((max by (cluster, namespace, pod, container) (rate(container_cpu_cfs_periods_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__rate_interval]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) > 0)",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "CPU per kontener — % request",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Pomaga rozróżnić aplikację i sidecary.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * ((max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[$__rate_interval]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) / (((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"cpu\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) > 0)",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "row",
+      "title": "Pamięć — pod i kontener",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 17,
+      "title": "RAM per pod — working set / request / limit",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Suma working set nie jest pełną pamięcią rozliczaną przy OOM; suma limitów może być niepełna.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (container_memory_working_set_bytes{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{pod}} working set",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"memory\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{pod}} request",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "expr": "sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (kube_pod_container_resource_limits{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"memory\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))",
+          "legendFormat": "{{cluster}} {{pod}} configured limit",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "RAM per pod — % request",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (container_memory_working_set_bytes{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))) / ((sum by (cluster, namespace, pod) ((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"memory\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))) > 0)",
+          "legendFormat": "{{cluster}} {{pod}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "title": "RAM per kontener — working set",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by (cluster, namespace, pod, container) (container_memory_working_set_bytes{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "title": "RAM per kontener — % limit",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Working set / limit; nie prognozuje samodzielnie ryzyka OOM.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * ((max by (cluster, namespace, pod, container) (container_memory_working_set_bytes{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) / (((max by (cluster, namespace, pod, container) (kube_pod_container_resource_limits{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"memory\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) > 0)",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "title": "Restarty per kontener — ruchome okno 1h",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "description": "increase licznika w ostatniej godzinie dla każdego punktu wykresu.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by (cluster, namespace, pod, container) (increase(kube_pod_container_status_restarts_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[1h]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "title": "OOMKilled — ostatnia znana przyczyna per kontener",
+      "type": "timeseries",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "description": "1 = ostatnie znane zakończenie było OOMKilled. To nie jest licznik ani potwierdzenie nowego zdarzenia w wybranym okresie.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by (cluster, namespace, pod, container) (kube_pod_container_status_last_terminated_reason{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", reason=\"OOMKilled\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "row",
+      "title": "Historia wybranego okresu — per pod / kontener, próbki co 5 minut",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 24,
+      "title": "CPU p95",
+      "type": "bargauge",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 73,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Statystyka czasowa każdej serii z wybranego zakresu. Rozdzielone wersje podów po rolloutach. Nie jest automatyczną rekomendacją requestu.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, ((max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[5m]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))[$__range:5m])",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "sizing": "auto",
+        "minVizWidth": 0,
+        "minVizHeight": 10
+      }
+    },
+    {
+      "id": 25,
+      "title": "CPU p99",
+      "type": "bargauge",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 73,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Statystyka czasowa każdej serii z wybranego zakresu. Rozdzielone wersje podów po rolloutach. Nie jest automatyczną rekomendacją requestu.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.99, ((max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[5m]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))[$__range:5m])",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "sizing": "auto",
+        "minVizWidth": 0,
+        "minVizHeight": 10
+      }
+    },
+    {
+      "id": 26,
+      "title": "RAM working set p95",
+      "type": "bargauge",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 81,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Statystyka czasowa każdej serii z wybranego zakresu. Rozdzielone wersje podów po rolloutach. Nie jest automatyczną rekomendacją requestu.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, ((max by (cluster, namespace, pod, container) (container_memory_working_set_bytes{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))[$__range:5m])",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "sizing": "auto",
+        "minVizWidth": 0,
+        "minVizHeight": 10
+      }
+    },
+    {
+      "id": 27,
+      "title": "RAM working set max — próbki 5m",
+      "type": "bargauge",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 81,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Statystyka czasowa każdej serii z wybranego zakresu. Rozdzielone wersje podów po rolloutach. Nie jest automatyczną rekomendacją requestu.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max_over_time(((max by (cluster, namespace, pod, container) (container_memory_working_set_bytes{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\"))))))[$__range:5m])",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "sizing": "auto",
+        "minVizWidth": 0,
+        "minVizHeight": 10
+      }
+    },
+    {
+      "id": 28,
+      "title": "CPU p95 wykorzystania requestu",
+      "type": "bargauge",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 89,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Statystyka czasowa każdej serii z wybranego zakresu. Rozdzielone wersje podów po rolloutach. Nie jest automatyczną rekomendacją requestu.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, (100 * ((max by (cluster, namespace, pod, container) (rate(container_cpu_usage_seconds_total{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"}[5m]))) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) / (((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"cpu\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) > 0))[$__range:5m])",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "sizing": "auto",
+        "minVizWidth": 0,
+        "minVizHeight": 10
+      }
+    },
+    {
+      "id": 29,
+      "title": "RAM p95 wykorzystania requestu",
+      "type": "bargauge",
+      "pluginVersion": "12.0.0",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 89,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Statystyka czasowa każdej serii z wybranego zakresu. Rozdzielone wersje podów po rolloutach. Nie jest automatyczną rekomendacją requestu.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, (100 * ((max by (cluster, namespace, pod, container) (container_memory_working_set_bytes{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) / (((max by (cluster, namespace, pod, container) (kube_pod_container_resource_requests{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\", container=~\"${container:regex}\", resource=\"memory\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))) > 0))[$__range:5m])",
+          "legendFormat": "{{cluster}} {{pod}} / {{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "sizing": "auto",
+        "minVizWidth": 0,
+        "minVizHeight": 10
+      }
+    }
+  ]
+}

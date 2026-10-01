@@ -1,0 +1,128 @@
+{
+  "id": null,
+  "uid": "k8s-rightsizing-v1",
+  "title": "Kubernetes Rightsizing — Deployment",
+  "description": "Diagnostyka zasobów deploymentu: CPU, RAM, requests/limits, CFS throttling, restarty i percentyle. Pod → ReplicaSet → Deployment z kube-state-metrics.",
+  "tags": [
+    "kubernetes",
+    "rightsizing",
+    "prometheus"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "",
+  "time": {
+    "from": "now-14d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m",
+      "1h"
+    ],
+    "time_options": [
+      "1h",
+      "6h",
+      "24h",
+      "7d",
+      "14d",
+      "30d"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "refresh": 1,
+        "hide": 0,
+        "current": {},
+        "options": [],
+        "regex": "",
+        "multi": false
+      },
+      {
+        "name": "cluster",
+        "label": "Cluster (regex, opcjonalnie)",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        },
+        "options": [
+          {
+            "text": ".*",
+            "value": ".*",
+            "selected": true
+          }
+        ],
+        "hide": 0
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(kube_pod_owner{cluster=~\"${cluster:raw}\"}, namespace)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(kube_pod_owner{cluster=~\"${cluster:raw}\"}, namespace)",
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "multi": false,
+        "includeAll": false,
+        "allValue": null,
+        "current": {},
+        "options": []
+      },
+      {
+        "name": "deployment",
+        "label": "Deployment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(kube_deployment_spec_replicas{cluster=~\"${cluster:raw}\", namespace=\"$namespace\"}, deployment)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "label_values(kube_deployment_spec_replicas{cluster=~\"${cluster:raw}\", namespace=\"$namespace\"}, deployment)",
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "multi": false,
+        "includeAll": false,
+        "allValue": null,
+        "current": {},
+        "options": []
+      },
+      {
+        "name": "container",
+        "label": "Kontener",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "query_result(count by (container) ((max by (cluster, namespace, pod, container) (kube_pod_container_info{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "definition": "query_result(count by (container) ((max by (cluster, namespace, pod, container) (kube_pod_container_info{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", container!=\"\", container!=\"POD\"})) * on (cluster, namespace, pod) group_left (deployment) (max by (cluster, namespace, pod, deployment) ((max by (cluster, namespace, pod, replicaset) (label_replace(kube_pod_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"ReplicaSet\", owner_is_controller=\"true\"}, \"replicaset\", \"$1\", \"owner_name\", \"(.*)\")) * on (cluster, namespace, replicaset) group_left (deployment) max by (cluster, namespace, replicaset, deployment) (label_replace(kube_replicaset_owner{cluster=~\"${cluster:raw}\", namespace=\"$namespace\", owner_kind=\"Deployment\", owner_is_controller=\"true\", owner_name=\"$deployment\"}, \"deployment\", \"$1\", \"owner_name\", \"(.*)\")))))))",
+        "refresh": 1,
